@@ -87,6 +87,36 @@ export async function getOrCreateHyperbeamSession(
       }
     }
 
+    // If rate-limited (429), seamlessly attach to the active running VM on the account
+    if (res.status === 429) {
+      console.warn("Hyperbeam rate limit hit. Recovering active VM session...");
+      try {
+        const listRes = await fetch("https://engine.hyperbeam.com/v0/vm", {
+          headers: { Authorization: `Bearer ${apiKey}` },
+        });
+        if (listRes.ok) {
+          const listData = (await listRes.json()) as { results?: Array<{ id: string }> };
+          const activeVm = listData.results?.[0];
+          if (activeVm?.id) {
+            const detailRes = await fetch(`https://engine.hyperbeam.com/v0/vm/${activeVm.id}`, {
+              headers: { Authorization: `Bearer ${apiKey}` },
+            });
+            if (detailRes.ok) {
+              const activeData = (await detailRes.json()) as HyperbeamApiResponse;
+              roomSessions.set(roomId, activeData);
+              return {
+                sessionId: activeData.session_id,
+                embedUrl: activeData.embed_url,
+                adminToken: activeData.admin_token,
+              };
+            }
+          }
+        }
+      } catch (rateLimitErr) {
+        console.error("Rate limit recovery error:", rateLimitErr);
+      }
+    }
+
     if (!res.ok) {
       const errText = await res.text();
       console.error("Hyperbeam API error:", res.status, errText);
