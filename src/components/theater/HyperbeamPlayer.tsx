@@ -2,15 +2,10 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
-  VolumeX,
   Volume2,
-  RefreshCw,
-  Sparkles,
-  ExternalLink,
   Globe,
-  KeyRound,
-  ShieldCheck,
-  Film,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { UserProfile, ReactionBurst } from "@/types/chat";
 import { PlayerControls } from "./PlayerControls";
@@ -42,7 +37,6 @@ export const HyperbeamPlayer: React.FC<HyperbeamPlayerProps> = ({
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isDemo, setIsDemo] = useState(false);
   const [embedUrl, setEmbedUrl] = useState<string | null>(null);
 
   const [isMuted, setIsMuted] = useState(true);
@@ -50,11 +44,10 @@ export const HyperbeamPlayer: React.FC<HyperbeamPlayerProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [needsAudioInteraction, setNeedsAudioInteraction] = useState(true);
 
-  // Demo simulator state
-  const [demoUrl, setDemoUrl] = useState("https://www.youtube.com/embed/jfKfPfyJRdk?autoplay=1&mute=1");
-  const [urlInput, setUrlInput] = useState("https://www.youtube.com/watch?v=jfKfPfyJRdk");
+  // Omnibar state
+  const [urlInput, setUrlInput] = useState("https://www.youtube.com");
 
-  // Fetch or initialize session
+  // Fetch or initialize session directly from Hyperbeam cloud engine
   const initSession = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -66,24 +59,16 @@ export const HyperbeamPlayer: React.FC<HyperbeamPlayerProps> = ({
         body: JSON.stringify({ roomId }),
       });
 
-      if (!res.ok) {
-        throw new Error(`Failed to initialize session: ${res.statusText}`);
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || data.error || !data.embedUrl) {
+        throw new Error(data.error || `Failed to start Hyperbeam session: ${res.statusText}`);
       }
 
-      const data = await res.json();
-
-      if (data.isDemo || !data.embedUrl) {
-        setIsDemo(true);
-        setLoading(false);
-        return;
-      }
-
-      setIsDemo(false);
       setEmbedUrl(data.embedUrl);
     } catch (err) {
-      console.warn("Session init fallback to demo:", err);
-      setIsDemo(true);
-      setError(err instanceof Error ? err.message : "Error connecting to Hyperbeam");
+      console.error("Hyperbeam session init error:", err);
+      setError(err instanceof Error ? err.message : "Error connecting to Hyperbeam cloud browser");
     } finally {
       setLoading(false);
     }
@@ -98,7 +83,7 @@ export const HyperbeamPlayer: React.FC<HyperbeamPlayerProps> = ({
     let mounted = true;
 
     async function mountHyperbeam() {
-      if (!embedUrl || !containerRef.current || isDemo) return;
+      if (!embedUrl || !containerRef.current) return;
 
       try {
         // Dynamically import @hyperbeam/web for SSR safety
@@ -119,10 +104,12 @@ export const HyperbeamPlayer: React.FC<HyperbeamPlayerProps> = ({
           volume: isMuted ? 0 : volume,
           delegateKeyboard: true,
           onConnected: () => {
-            console.log("Hyperbeam VM stream connected successfully.");
+            console.log("Hyperbeam cloud VM stream connected successfully.");
+            setLoading(false);
           },
           onError: (e: Error) => {
             console.error("Hyperbeam runtime error:", e);
+            setError(e.message);
           },
         });
 
@@ -134,7 +121,7 @@ export const HyperbeamPlayer: React.FC<HyperbeamPlayerProps> = ({
       } catch (e) {
         console.error("Failed to mount Hyperbeam instance:", e);
         if (mounted) {
-          setIsDemo(true);
+          setError(e instanceof Error ? e.message : "Failed to load Hyperbeam Web SDK");
         }
       }
     }
@@ -152,7 +139,7 @@ export const HyperbeamPlayer: React.FC<HyperbeamPlayerProps> = ({
         hyperbeamInstanceRef.current = null;
       }
     };
-  }, [embedUrl, isDemo, isMuted, volume]);
+  }, [embedUrl, isMuted, volume]);
 
   // Audio mute toggle
   const handleToggleMute = () => {
@@ -200,39 +187,39 @@ export const HyperbeamPlayer: React.FC<HyperbeamPlayerProps> = ({
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
 
+  // Navigate stream URL in Hyperbeam VM and broadcast to party
+  const navigateToUrl = useCallback(
+    (url: string, title?: string, broadcast: boolean = true) => {
+      if (!url.trim()) return;
+      let target = url.trim();
+      if (!target.startsWith("http://") && !target.startsWith("https://")) {
+        target = `https://${target}`;
+      }
+
+      setUrlInput(target);
+
+      // If Hyperbeam tabs API is accessible, navigate the VM
+      if (hyperbeamInstanceRef.current?.tabs?.create) {
+        try {
+          hyperbeamInstanceRef.current.tabs.create(target);
+        } catch (err) {
+          console.warn("Could not navigate VM tab:", err);
+        }
+      }
+
+      if (broadcast && onSyncMedia) {
+        onSyncMedia(target, title || target);
+      }
+    },
+    [onSyncMedia]
+  );
+
   // Synchronize media from remote broadcast
   useEffect(() => {
     if (currentMedia?.url) {
-      setUrlInput(currentMedia.url);
-      if (currentMedia.url.includes("youtube.com/watch?v=")) {
-        const vidId = currentMedia.url.split("v=")[1]?.split("&")[0];
-        setDemoUrl(`https://www.youtube.com/embed/${vidId}?autoplay=1&mute=0`);
-      } else if (currentMedia.url.includes("youtu.be/")) {
-        const vidId = currentMedia.url.split("youtu.be/")[1]?.split("?")[0];
-        setDemoUrl(`https://www.youtube.com/embed/${vidId}?autoplay=1&mute=0`);
-      } else {
-        setDemoUrl(currentMedia.url);
-      }
+      navigateToUrl(currentMedia.url, currentMedia.title, false);
     }
-  }, [currentMedia]);
-
-  // Preset demo websites & broadcast to room
-  const loadDemoUrl = (url: string, title?: string, broadcast: boolean = true) => {
-    setUrlInput(url);
-    if (url.includes("youtube.com/watch?v=")) {
-      const vidId = url.split("v=")[1]?.split("&")[0];
-      setDemoUrl(`https://www.youtube.com/embed/${vidId}?autoplay=1&mute=0`);
-    } else if (url.includes("youtu.be/")) {
-      const vidId = url.split("youtu.be/")[1]?.split("?")[0];
-      setDemoUrl(`https://www.youtube.com/embed/${vidId}?autoplay=1&mute=0`);
-    } else {
-      setDemoUrl(url);
-    }
-
-    if (broadcast && onSyncMedia) {
-      onSyncMedia(url, title || url);
-    }
-  };
+  }, [currentMedia, navigateToUrl]);
 
   return (
     <div
@@ -250,53 +237,51 @@ export const HyperbeamPlayer: React.FC<HyperbeamPlayerProps> = ({
             <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
           </div>
           <span className="hidden sm:inline font-mono font-semibold text-slate-400 ml-2">
-            Hyperbeam Virtual Browser
+            Hyperbeam Cloud Browser
           </span>
         </div>
 
         {/* Omnibar / Address bar */}
         <div className="flex-1 max-w-xl mx-2">
-          <div className="flex items-center gap-2 bg-theater-850 px-3 py-1 rounded-full border border-theater-750 text-slate-300">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              navigateToUrl(urlInput);
+            }}
+            className="flex items-center gap-2 bg-theater-850 px-3 py-1 rounded-full border border-theater-750 text-slate-300"
+          >
             <Globe className="w-3.5 h-3.5 text-brand-cyan shrink-0" />
             <input
               type="text"
-              value={isDemo ? urlInput : "https://hyperbeam.cloud/vm/active"}
+              value={urlInput}
               onChange={(e) => setUrlInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") loadDemoUrl(urlInput);
-              }}
-              readOnly={!isDemo}
               placeholder="Enter stream or website URL..."
               className="w-full bg-transparent outline-none text-xs text-slate-200 placeholder-slate-500 font-mono"
             />
-            {isDemo && (
-              <button
-                onClick={() => loadDemoUrl(urlInput)}
-                className="text-[11px] px-2 py-0.5 rounded bg-brand-purple/20 hover:bg-brand-purple/40 text-brand-purple font-medium"
-              >
-                Go
-              </button>
-            )}
-          </div>
+            <button
+              type="submit"
+              className="text-[11px] px-2 py-0.5 rounded bg-brand-purple/20 hover:bg-brand-purple/40 text-brand-purple font-medium transition-colors"
+            >
+              Go
+            </button>
+          </form>
         </div>
 
-        {/* Presets in demo mode */}
-        {isDemo && (
-          <div className="hidden md:flex items-center gap-1.5">
-            <button
-              onClick={() => loadDemoUrl("https://www.youtube.com/watch?v=jfKfPfyJRdk", "Lofi Girl Beats")}
-              className="px-2 py-0.5 rounded bg-theater-800 hover:bg-theater-750 text-[11px] text-slate-300 border border-theater-700"
-            >
-              Lofi Beats
-            </button>
-            <button
-              onClick={() => loadDemoUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "Never Gonna Give You Up")}
-              className="px-2 py-0.5 rounded bg-theater-800 hover:bg-theater-750 text-[11px] text-slate-300 border border-theater-700"
-            >
-              Rickroll
-            </button>
-          </div>
-        )}
+        {/* Preset quick links */}
+        <div className="hidden md:flex items-center gap-1.5">
+          <button
+            onClick={() => navigateToUrl("https://www.youtube.com", "YouTube")}
+            className="px-2 py-0.5 rounded bg-theater-800 hover:bg-theater-750 text-[11px] text-slate-300 border border-theater-700"
+          >
+            YouTube
+          </button>
+          <button
+            onClick={() => navigateToUrl("https://www.twitch.tv", "Twitch")}
+            className="px-2 py-0.5 rounded bg-theater-800 hover:bg-theater-750 text-[11px] text-slate-300 border border-theater-700"
+          >
+            Twitch
+          </button>
+        </div>
       </div>
 
       {/* Main View Area */}
@@ -308,13 +293,31 @@ export const HyperbeamPlayer: React.FC<HyperbeamPlayerProps> = ({
         {loading && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-theater-950/90 backdrop-blur-sm gap-3">
             <div className="w-10 h-10 border-3 border-brand-purple border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm font-medium text-slate-300">Spinning up cloud virtual browser...</p>
-            <p className="text-xs text-slate-500">Allocating isolated VM container session</p>
+            <p className="text-sm font-medium text-slate-300">Connecting to Hyperbeam Cloud VM...</p>
+            <p className="text-xs text-slate-500">Allocating isolated Chromium cloud browser container</p>
           </div>
         )}
 
-        {/* Unmute prompt banner (Modern browser autoplay policy) */}
-        {needsAudioInteraction && !loading && (
+        {/* Error State */}
+        {error && !loading && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-theater-950/95 p-6 text-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <h3 className="text-base font-bold text-white">Hyperbeam Connection Notice</h3>
+            <p className="text-xs text-slate-400 max-w-md leading-relaxed">{error}</p>
+            <button
+              onClick={initSession}
+              className="mt-2 flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-purple hover:bg-brand-violet text-white text-xs font-semibold shadow transition-all"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Retry Session</span>
+            </button>
+          </div>
+        )}
+
+        {/* Unmute prompt banner */}
+        {needsAudioInteraction && !loading && !error && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 animate-fade-in">
             <button
               onClick={handleToggleMute}
@@ -326,65 +329,11 @@ export const HyperbeamPlayer: React.FC<HyperbeamPlayerProps> = ({
           </div>
         )}
 
-        {/* HYPERBEAM SDK CONTAINER (When live key is present) */}
-        {!isDemo && embedUrl && (
-          <div
-            ref={containerRef}
-            className="w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:border-0"
-          />
-        )}
-
-        {/* INTERACTIVE DEMO & API KEY ONBOARDING (When key is pending) */}
-        {isDemo && !loading && (
-          <div className="relative w-full h-full flex flex-col">
-            {/* Realtime synchronized interactive demo iframe */}
-            <div className="flex-1 w-full h-full relative">
-              <iframe
-                src={demoUrl}
-                title="Virtual Browser Demo"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                className="w-full h-full border-0"
-              />
-
-              {/* Demo Mode Notice Badge */}
-              <div className="absolute top-3 right-3 z-10">
-                <div className="group relative">
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-theater-950/85 backdrop-blur-md border border-amber-500/40 text-amber-300 text-xs shadow-xl cursor-pointer">
-                    <KeyRound className="w-3.5 h-3.5 text-amber-400 animate-bounce" />
-                    <span className="font-semibold">Demo Sandbox Active</span>
-                  </div>
-
-                  {/* Popover tooltip explaining how to plug in the key */}
-                  <div className="hidden group-hover:block absolute right-0 mt-2 w-80 p-4 rounded-xl bg-theater-900 border border-theater-700 shadow-2xl text-xs text-slate-300 z-50">
-                    <div className="flex items-center gap-2 font-bold text-amber-400 mb-2">
-                      <Sparkles className="w-4 h-4" />
-                      <span>Ready to add your Hyperbeam Key?</span>
-                    </div>
-                    <p className="text-slate-400 mb-2">
-                      Get a free API key at{" "}
-                      <a
-                        href="https://hyperbeam.com"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-brand-cyan underline"
-                      >
-                        hyperbeam.com
-                      </a>
-                      .
-                    </p>
-                    <div className="bg-theater-950 p-2 rounded-lg font-mono text-[11px] text-brand-purple border border-theater-800 select-all mb-2">
-                      HYPERBEAM_API_KEY=your_key_here
-                    </div>
-                    <p className="text-[11px] text-slate-500">
-                      Add to <span className="text-slate-300">.env.local</span> and reload to activate dedicated Chromium cloud VMs.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* HYPERBEAM SDK CONTAINER */}
+        <div
+          ref={containerRef}
+          className="w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:border-0"
+        />
       </div>
 
       {/* Theater Controls Footer */}
@@ -399,7 +348,6 @@ export const HyperbeamPlayer: React.FC<HyperbeamPlayerProps> = ({
         controller={controller}
         currentUser={currentUser}
         onToggleControl={onToggleControl}
-        isDemoMode={isDemo}
       />
     </div>
   );

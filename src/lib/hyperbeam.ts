@@ -14,23 +14,15 @@ export async function getOrCreateHyperbeamSession(
   sessionId: string;
   embedUrl: string;
   adminToken?: string;
-  isDemo: boolean;
-  message?: string;
+  error?: string;
 }> {
-  const apiKey = process.env.HYPERBEAM_API_KEY;
+  const apiKey = process.env.HYPERBEAM_API_KEY?.trim();
 
-  // If no valid API key configured, return demo fallback
-  if (
-    !apiKey ||
-    apiKey.trim() === "" ||
-    apiKey.includes("your_key") ||
-    apiKey.includes("your_hyperbeam")
-  ) {
+  if (!apiKey || apiKey.includes("your_key") || apiKey.includes("your_hyperbeam")) {
     return {
-      sessionId: `demo-${roomId}`,
+      sessionId: "",
       embedUrl: "",
-      isDemo: true,
-      message: "Hyperbeam API key not configured. Running in interactive demo mode.",
+      error: "Hyperbeam API key is not configured in environment variables.",
     };
   }
 
@@ -41,20 +33,19 @@ export async function getOrCreateHyperbeamSession(
       sessionId: existing.session_id,
       embedUrl: existing.embed_url,
       adminToken: existing.admin_token,
-      isDemo: false,
     };
   }
 
-  // Request new VM session from Hyperbeam REST API
-  try {
-    const res = await fetch("https://engine.hyperbeam.com/v0/vm", {
+  // Helper to send creation request to Hyperbeam REST API
+  const requestVmCreation = async () => {
+    return await fetch("https://engine.hyperbeam.com/v0/vm", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${apiKey.trim()}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        start_url: startUrl,
+        start_url: startUrl || "https://www.youtube.com",
         kiosk: false,
         timeout: {
           absolute: 7200, // 2 hours
@@ -62,11 +53,48 @@ export async function getOrCreateHyperbeamSession(
         },
       }),
     });
+  };
+
+  try {
+    let res = await requestVmCreation();
+
+    // If active VM limit was exceeded (e.g. 1 concurrent VM limit on test/starter tier),
+    // automatically cleanup stale previous VMs and retry immediately.
+    if (res.status === 400) {
+      const errJson = await res.clone().json().catch(() => ({}));
+      if (errJson.code === "err_exceeded_vm_limit") {
+        console.warn("Hyperbeam VM limit reached. Automatically terminating stale previous VMs...");
+        try {
+          const listRes = await fetch("https://engine.hyperbeam.com/v0/vm", {
+            headers: { Authorization: `Bearer ${apiKey}` },
+          });
+
+          if (listRes.ok) {
+            const listData = (await listRes.json()) as { results?: Array<{ id: string }> };
+            for (const vm of listData.results || []) {
+              console.log("Terminating stale VM:", vm.id);
+              await fetch(`https://engine.hyperbeam.com/v0/vm/${vm.id}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${apiKey}` },
+              }).catch(() => {});
+            }
+            // Retry VM creation
+            res = await requestVmCreation();
+          }
+        } catch (cleanupErr) {
+          console.error("Failed to clean up stale Hyperbeam VMs:", cleanupErr);
+        }
+      }
+    }
 
     if (!res.ok) {
       const errText = await res.text();
       console.error("Hyperbeam API error:", res.status, errText);
-      throw new Error(`Hyperbeam API returned status ${res.status}: ${errText}`);
+      return {
+        sessionId: "",
+        embedUrl: "",
+        error: `Hyperbeam API error (${res.status}): ${errText}`,
+      };
     }
 
     const data = (await res.json()) as HyperbeamApiResponse;
@@ -76,15 +104,13 @@ export async function getOrCreateHyperbeamSession(
       sessionId: data.session_id,
       embedUrl: data.embed_url,
       adminToken: data.admin_token,
-      isDemo: false,
     };
   } catch (error) {
     console.error("Failed to create Hyperbeam VM session:", error);
     return {
-      sessionId: `error-${roomId}`,
+      sessionId: "",
       embedUrl: "",
-      isDemo: true,
-      message: error instanceof Error ? error.message : "Failed to connect to Hyperbeam API",
+      error: error instanceof Error ? error.message : "Failed to connect to Hyperbeam API",
     };
   }
 }

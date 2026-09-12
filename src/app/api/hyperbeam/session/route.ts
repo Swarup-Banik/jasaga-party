@@ -15,6 +15,12 @@ export async function POST(req: NextRequest) {
     }
 
     const sessionData = await getOrCreateHyperbeamSession(roomId, startUrl);
+    if (sessionData.error) {
+      return NextResponse.json(
+        { error: sessionData.error },
+        { status: 500 }
+      );
+    }
     return NextResponse.json(sessionData);
   } catch (err) {
     console.error("Session route handler error:", err);

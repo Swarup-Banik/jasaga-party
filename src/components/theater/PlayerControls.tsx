@@ -25,7 +25,6 @@ interface PlayerControlsProps {
   controller: UserProfile | null;
   currentUser: UserProfile;
   onToggleControl: () => void;
-  isDemoMode?: boolean;
 }
 
 export const PlayerControls: React.FC<PlayerControlsProps> = ({
@@ -39,7 +38,6 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   controller,
   currentUser,
   onToggleControl,
-  isDemoMode = false,
 }) => {
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const isController = controller?.id === currentUser.id;
@@ -122,13 +120,6 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
               : "Take Control"}
           </span>
         </button>
-
-        {isDemoMode && (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-amber-500/10 text-amber-300 border border-amber-500/30">
-            <Sparkles className="w-3 h-3 text-amber-400" />
-            <span>Demo Mode</span>
-          </span>
-        )}
       </div>
 
       {/* Right controls: Fullscreen */}
