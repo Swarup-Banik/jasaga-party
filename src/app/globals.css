@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #08070e;
+  --foreground: #f8fafc;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  overflow-x: hidden;
+}
+
+/* Custom Cinema Scrollbar with Anime Purple Glow */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(14, 11, 25, 0.5);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(168, 85, 247, 0.4);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(168, 85, 247, 0.8);
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+}
+
+/* Hide scrollbar for tabs */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Anime Glow & Border Accents */
+.anime-purple-glow {
+  box-shadow: 0 0 25px rgba(168, 85, 247, 0.25), inset 0 0 15px rgba(168, 85, 247, 0.1);
+}
+
+.anime-purple-border {
+  border-color: rgba(168, 85, 247, 0.35);
+}
+
+/* Manga Speech Bubble */
+.manga-bubble {
+  position: relative;
+  background: rgba(15, 12, 28, 0.95);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  border-radius: 14px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 15px rgba(168, 85, 247, 0.2);
+}
+
+.manga-bubble::after {
+  content: "";
+  position: absolute;
+  bottom: -6px;
+  left: 20px;
+  width: 10px;
+  height: 10px;
+  background: rgba(15, 12, 28, 0.95);
+  border-right: 1px solid rgba(168, 85, 247, 0.4);
+  border-bottom: 1px solid rgba(168, 85, 247, 0.4);
+  transform: rotate(45deg);
+}
+
+/* Anime character walking/floating animations */
+@keyframes characterBob {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-6px) rotate(-1.5deg);
+  }
+  75% {
+    transform: translateY(-3px) rotate(1.5deg);
+  }
+}
+
+@keyframes characterWiggle {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    transform: scale(1.05) rotate(3deg);
+  }
+}
+
+.animate-character-bob {
+  animation: characterBob 3s ease-in-out infinite;
+}
+
+.animate-character-wiggle {
+  animation: characterWiggle 2s ease-in-out infinite;
+}
+
+/* Drifting Anime Petals / Sparks */
+@keyframes petalFall {
+  0% {
+    transform: translateY(-10px) translateX(0) rotate(0deg);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.8;
+  }
+  80% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(100vh) translateX(60px) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+.sakura-petal {
+  position: fixed;
+  pointer-events: none;
+  z-index: 10;
+  animation: petalFall linear infinite;
+}
