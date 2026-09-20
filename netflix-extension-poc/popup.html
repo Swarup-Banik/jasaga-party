@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JASAGA Netflix Sync POC</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <span class="logo-badge">N</span>
+        <div class="brand-text">
+          <h1>JASAGA POC</h1>
+          <span class="subtext">Netflix Local Sync Bridge</span>
+        </div>
+      </div>
+      <div id="connectionPill" class="pill pill-offline">
+        <span class="indicator"></span>
+        <span id="connectionText">Searching...</span>
+      </div>
+    </header>
+
+    <!-- JASAGA Room Pairing Status -->
+    <section class="card info-card" style="margin-bottom: 8px; border-color: rgba(168, 85, 247, 0.35); background: rgba(88, 28, 135, 0.15);">
+      <div class="info-row">
+        <span class="label">JASAGA Room:</span>
+        <span id="pairedRoomEl" class="value font-mono" style="color: #c084fc;">Not Paired</span>
+      </div>
+      <div class="info-row">
+        <span class="label">Sync Role:</span>
+        <span id="pairedRoleEl" class="value" style="font-weight: 600;">--</span>
+      </div>
+    </section>
+
+    <!-- Tab & Episode Info -->
+    <section class="card info-card">
+      <div class="info-row">
+        <span class="label">Target Tab:</span>
+        <span id="tabStatus" class="value text-muted">Locating Netflix...</span>
+      </div>
+      <div class="info-row">
+        <span class="label">Episode ID:</span>
+        <span id="episodeId" class="value font-mono">--</span>
+      </div>
+      <div class="info-row">
+        <span class="label">Source API:</span>
+        <span id="sourceApi" class="value font-mono">--</span>
+      </div>
+    </section>
+
+    <!-- Live Telemetry Display -->
+    <section class="card telemetry-card">
+      <div class="telemetry-header">
+        <span class="section-title">Observed Playback</span>
+        <span id="playingBadge" class="badge badge-paused">⏸ PAUSED</span>
+      </div>
+      <div class="timecode-display">
+        <span id="currentTime" class="time-main">00:00.00</span>
+        <span class="time-sep">/</span>
+        <span id="totalDuration" class="time-total">00:00.00</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div id="progressBar" class="progress-bar-fill" style="width: 0%;"></div>
+      </div>
+    </section>
+
+    <!-- Test Action Controls -->
+    <section class="card controls-card">
+      <span class="section-title">Playback Command Tests</span>
+      <div class="button-row">
+        <button id="btnPlay" class="btn btn-primary" title="Test Play Command">▶ Play</button>
+        <button id="btnPause" class="btn btn-secondary" title="Test Pause Command">⏸ Pause</button>
+        <button id="btnStepBack" class="btn btn-dark" title="Seek -10 seconds">⏪ -10s</button>
+        <button id="btnStepForward" class="btn btn-dark" title="Seek +10 seconds">⏩ +10s</button>
+      </div>
+
+      <div class="seek-row">
+        <input type="number" id="seekInput" placeholder="Sec (e.g. 120)" min="0" step="5">
+        <button id="btnSeek" class="btn btn-accent">Seek to Time</button>
+      </div>
+    </section>
+
+    <!-- Diagnostics & Audit Action Buttons -->
+    <div class="action-row" style="display: flex; gap: 6px;">
+      <button id="btnRunAudit" class="btn btn-audit" style="flex: 1;">
+        🧪 Run 10-Point Audit
+      </button>
+      <button id="btnRunDiagnostics" class="btn btn-diagnostics" style="flex: 1;">
+        ⚡ Full Diagnostic Scan
+      </button>
+    </div>
+
+    <!-- 10-Point Audit Results Section -->
+    <section id="auditSection" class="audit-results hidden">
+      <div class="diag-header">
+        <span>10-Point Capability Verification</span>
+        <button id="btnCloseAudit" class="btn-sm">Hide</button>
+      </div>
+      <div id="auditSummaryBanner" class="audit-summary"></div>
+      <div id="auditList" class="audit-list"></div>
+    </section>
+
+    <!-- Diagnostic Results Categories -->
+    <section id="diagnosticsSection" class="diagnostics-results hidden">
+      <div class="diag-header">
+        <span>Diagnostic Report</span>
+        <button id="btnCloseDiag" class="btn-sm">Hide</button>
+      </div>
+      <div class="diag-groups">
+        <div class="diag-group group-a">
+          <h4>A. Confirmed Working</h4>
+          <ul id="listGroupA"></ul>
+        </div>
+        <div class="diag-group group-b">
+          <h4>B. Partially Working</h4>
+          <ul id="listGroupB"></ul>
+        </div>
+        <div class="diag-group group-c">
+          <h4>C. Not Working</h4>
+          <ul id="listGroupC"></ul>
+        </div>
+        <div class="diag-group group-d">
+          <h4>D. Undocumented Internals</h4>
+          <ul id="listGroupD"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Event & Log Console -->
+    <section class="card log-card">
+      <div class="log-header">
+        <span class="section-title">Event & Command Log</span>
+        <button id="btnClearLog" class="btn-link">Clear</button>
+      </div>
+      <div id="logConsole" class="log-console">
+        <div class="log-entry log-info">[Init] Extension popup loaded. Waiting for tab...</div>
+      </div>
+    </section>
+
+    <!-- Footer Disclaimer -->
+    <footer class="footer">
+      <span>Zero Credentials • No DRM Bypass • Read/Control POC Only</span>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

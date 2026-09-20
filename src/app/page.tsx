@@ -23,14 +23,20 @@ import { JoinRoomCard } from "@/components/lobby/JoinRoomCard";
 import { UserProfileModal } from "@/components/lobby/UserProfileModal";
 import { ChainsawManCompanions } from "@/components/anime/ChainsawManCompanions";
 import { MediaSearchSection } from "@/components/media/MediaSearchSection";
+import { NetflixRoomCard } from "@/components/lobby/NetflixRoomCard";
+import { NetflixDashboard } from "@/components/netflix/NetflixDashboard";
 import { useRoomUser } from "@/hooks/useRoomUser";
 
-type LobbyTab = "launcher" | "search" | "features";
+type LobbyTab = "launcher" | "netflix" | "search" | "features";
 
 export default function LobbyPage() {
   const { user, updateProfile } = useRoomUser();
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [activeTab, setActiveTab] = useState<LobbyTab>("launcher");
+
+  if (activeTab === "netflix") {
+    return <NetflixDashboard onSwitchToWatchParty={() => setActiveTab("launcher")} />;
+  }
 
   return (
     <div className="min-h-screen bg-theater-950 flex flex-col justify-between text-slate-200 relative overflow-x-hidden">
@@ -75,6 +81,13 @@ export default function LobbyPage() {
             }`}
           >
             🚀 Watch Party
+          </button>
+          <button
+            onClick={() => setActiveTab("netflix")}
+            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 text-slate-400 hover:text-purple-300 hover:bg-purple-950/30"
+          >
+            <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+            <span>Netflix Party</span>
           </button>
           <button
             onClick={() => setActiveTab("search")}
@@ -144,10 +157,10 @@ export default function LobbyPage() {
         </div>
 
         {/* Mobile Segment Navigation Bar (< 768px) */}
-        <div className="flex md:hidden items-center p-1 rounded-xl bg-theater-900/90 border border-purple-500/20 shadow-inner mb-6 w-full max-w-sm justify-between">
+        <div className="flex md:hidden items-center p-1 rounded-xl bg-theater-900/90 border border-purple-500/20 shadow-inner mb-6 w-full max-w-md justify-between gap-1 overflow-x-auto">
           <button
             onClick={() => setActiveTab("launcher")}
-            className={`flex-1 py-1.5 text-center rounded-lg text-xs font-semibold transition-all ${
+            className={`flex-1 py-1.5 px-2 text-center rounded-lg text-xs font-semibold transition-all shrink-0 ${
               activeTab === "launcher"
                 ? "bg-purple-600 text-white shadow"
                 : "text-slate-400"
@@ -156,8 +169,14 @@ export default function LobbyPage() {
             🚀 Party
           </button>
           <button
+            onClick={() => setActiveTab("netflix")}
+            className="flex-1 py-1.5 px-2 text-center rounded-lg text-xs font-semibold transition-all shrink-0 text-slate-400 hover:text-purple-300"
+          >
+            🍿 Netflix
+          </button>
+          <button
             onClick={() => setActiveTab("search")}
-            className={`flex-1 py-1.5 text-center rounded-lg text-xs font-semibold transition-all ${
+            className={`flex-1 py-1.5 px-2 text-center rounded-lg text-xs font-semibold transition-all shrink-0 ${
               activeTab === "search"
                 ? "bg-purple-600 text-white shadow"
                 : "text-slate-400"
@@ -167,7 +186,7 @@ export default function LobbyPage() {
           </button>
           <button
             onClick={() => setActiveTab("features")}
-            className={`flex-1 py-1.5 text-center rounded-lg text-xs font-semibold transition-all ${
+            className={`flex-1 py-1.5 px-2 text-center rounded-lg text-xs font-semibold transition-all shrink-0 ${
               activeTab === "features"
                 ? "bg-purple-600 text-white shadow"
                 : "text-slate-400"
@@ -186,7 +205,7 @@ export default function LobbyPage() {
             </div>
 
             {/* Clean Prompt to Search Content */}
-            <div className="w-full max-w-4xl p-4 rounded-2xl bg-theater-900/60 border border-purple-500/20 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+            <div className="w-full max-w-4xl p-4 rounded-2xl bg-theater-900/60 border border-purple-500/20 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg mb-6">
               <div className="flex items-center gap-3 text-left">
                 <div className="w-9 h-9 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center shrink-0 border border-purple-500/30">
                   <Search className="w-4 h-4" />
@@ -208,6 +227,19 @@ export default function LobbyPage() {
                 <span>Browse & Search</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
+            </div>
+
+            {/* Dedicated Netflix Watch Party Section */}
+            <div className="w-full max-w-4xl flex flex-col items-center">
+              <div className="w-full flex items-center gap-2 mb-3">
+                <span className="text-red-400 font-bold text-xs uppercase tracking-wider">
+                  🔴 Dedicated Netflix Section
+                </span>
+                <span className="text-[10px] bg-red-950/60 border border-red-500/30 text-red-300 px-2 py-0.5 rounded-full font-semibold">
+                  Personal Session Sync
+                </span>
+              </div>
+              <NetflixRoomCard />
             </div>
           </div>
         )}
