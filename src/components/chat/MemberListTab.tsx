@@ -1,19 +1,22 @@
 "use client";
 
 import React from "react";
-import { Users, Crown, MousePointer, Sparkles } from "lucide-react";
+import { Users, MousePointer, Mic, MicOff } from "lucide-react";
 import { PresenceUser, UserProfile } from "@/types/chat";
+import { VoiceParticipant } from "@/types/voice";
 
 interface MemberListTabProps {
   members: PresenceUser[];
   currentUser: UserProfile;
   controller: UserProfile | null;
+  voiceParticipants?: VoiceParticipant[];
 }
 
 export const MemberListTab: React.FC<MemberListTabProps> = ({
   members,
   currentUser,
   controller,
+  voiceParticipants = [],
 }) => {
   return (
     <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
@@ -22,15 +25,26 @@ export const MemberListTab: React.FC<MemberListTabProps> = ({
           <Users className="w-3.5 h-3.5 text-brand-purple" />
           <span>Active Viewers</span>
         </span>
-        <span className="px-2 py-0.5 rounded-full bg-theater-800 text-[11px] font-mono text-slate-300">
-          {members.length} online
-        </span>
+        <div className="flex items-center gap-1.5">
+          {voiceParticipants.length > 0 && (
+            <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-mono text-emerald-400 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>{voiceParticipants.length} in voice</span>
+            </span>
+          )}
+          <span className="px-2 py-0.5 rounded-full bg-theater-800 text-[11px] font-mono text-slate-300">
+            {members.length} online
+          </span>
+        </div>
       </div>
 
       <div className="space-y-2">
         {members.map((m) => {
           const isMe = m.user.id === currentUser.id;
           const hasControl = controller?.id === m.user.id;
+          const voiceP = voiceParticipants.find(
+            (p) => p.userId === m.user.id || p.userId === m.id
+          );
 
           return (
             <div
@@ -45,7 +59,9 @@ export const MemberListTab: React.FC<MemberListTabProps> = ({
                 {/* Avatar */}
                 <div className="relative">
                   <div
-                    className={`w-8 h-8 rounded-full bg-gradient-to-tr ${m.user.color} flex items-center justify-center text-sm shadow-md`}
+                    className={`w-8 h-8 rounded-full bg-gradient-to-tr ${m.user.color} flex items-center justify-center text-sm shadow-md transition-all ${
+                      voiceP?.isSpeaking ? "ring-2 ring-emerald-400 animate-pulse shadow-emerald-500/30" : ""
+                    }`}
                   >
                     {m.user.avatar}
                   </div>
@@ -71,7 +87,33 @@ export const MemberListTab: React.FC<MemberListTabProps> = ({
               </div>
 
               {/* Status Badges */}
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-1.5 shrink-0">
+                {voiceP && (
+                  <span
+                    className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold transition-all ${
+                      voiceP.isMuted
+                        ? "bg-rose-500/10 text-rose-400 border border-rose-500/30"
+                        : voiceP.isSpeaking
+                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400 animate-pulse"
+                        : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                    }`}
+                    title={
+                      voiceP.isMuted
+                        ? "Muted in voice call"
+                        : voiceP.isSpeaking
+                        ? "Speaking now"
+                        : "Connected in voice call"
+                    }
+                  >
+                    {voiceP.isMuted ? (
+                      <MicOff className="w-2.5 h-2.5" />
+                    ) : (
+                      <Mic className="w-2.5 h-2.5" />
+                    )}
+                    <span>Voice</span>
+                  </span>
+                )}
+
                 {hasControl && (
                   <span
                     className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"

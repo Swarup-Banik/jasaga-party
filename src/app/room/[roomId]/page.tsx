@@ -9,6 +9,7 @@ import { UserProfileModal } from "@/components/lobby/UserProfileModal";
 import { ChainsawManCompanions } from "@/components/anime/ChainsawManCompanions";
 import { useRoomUser } from "@/hooks/useRoomUser";
 import { useSupabaseChat } from "@/hooks/useSupabaseChat";
+import { useRoomVoice } from "@/hooks/useRoomVoice";
 
 function RoomTheater() {
   const params = useParams();
@@ -29,14 +30,34 @@ function RoomTheater() {
     currentMedia,
     isUsingSupabase,
     connectionStatus,
+    typingUsers,
     sendMessage,
+    reactToMessage,
+    editMessage,
+    deleteMessage,
+    setTyping,
     sendReaction,
     toggleControl,
     syncMedia,
   } = useSupabaseChat({ roomId, user });
 
-  const handleSendMessage = (text: string) => {
-    sendMessage(text);
+  // Native WebRTC Voice Chat Hook
+  const {
+    status: voiceStatus,
+    isMuted: isVoiceMuted,
+    isSpeaking: isVoiceSpeaking,
+    voiceParticipants,
+    availableAudioDevices,
+    selectedDeviceId: selectedAudioDeviceId,
+    errorMessage: voiceErrorMessage,
+    joinVoice,
+    leaveVoice,
+    toggleMute: toggleVoiceMute,
+    changeInputDevice: onChangeAudioDevice,
+  } = useRoomVoice({ roomId, user, onlineMembers });
+
+  const handleSendMessage = (text: string, replyTo?: any) => {
+    sendMessage(text, replyTo);
   };
 
   const handleToggleMobileChat = () => {
@@ -93,6 +114,22 @@ function RoomTheater() {
             controller={controller}
             onSendMessage={handleSendMessage}
             onBurstReaction={sendReaction}
+            onReactMessage={reactToMessage}
+            onEditMessage={editMessage}
+            onDeleteMessage={deleteMessage}
+            onTyping={setTyping}
+            typingUsers={typingUsers}
+            voiceStatus={voiceStatus}
+            isVoiceMuted={isVoiceMuted}
+            isVoiceSpeaking={isVoiceSpeaking}
+            voiceParticipants={voiceParticipants}
+            availableAudioDevices={availableAudioDevices}
+            selectedAudioDeviceId={selectedAudioDeviceId}
+            voiceErrorMessage={voiceErrorMessage}
+            onJoinVoice={joinVoice}
+            onLeaveVoice={leaveVoice}
+            onToggleVoiceMute={toggleVoiceMute}
+            onChangeAudioDevice={onChangeAudioDevice}
             onSyncMedia={syncMedia}
             isUsingSupabase={isUsingSupabase}
             connectionStatus={connectionStatus}
@@ -110,6 +147,22 @@ function RoomTheater() {
             controller={controller}
             onSendMessage={handleSendMessage}
             onBurstReaction={sendReaction}
+            onReactMessage={reactToMessage}
+            onEditMessage={editMessage}
+            onDeleteMessage={deleteMessage}
+            onTyping={setTyping}
+            typingUsers={typingUsers}
+            voiceStatus={voiceStatus}
+            isVoiceMuted={isVoiceMuted}
+            isVoiceSpeaking={isVoiceSpeaking}
+            voiceParticipants={voiceParticipants}
+            availableAudioDevices={availableAudioDevices}
+            selectedAudioDeviceId={selectedAudioDeviceId}
+            voiceErrorMessage={voiceErrorMessage}
+            onJoinVoice={joinVoice}
+            onLeaveVoice={leaveVoice}
+            onToggleVoiceMute={toggleVoiceMute}
+            onChangeAudioDevice={onChangeAudioDevice}
             onSyncMedia={syncMedia}
             isUsingSupabase={isUsingSupabase}
             connectionStatus={connectionStatus}

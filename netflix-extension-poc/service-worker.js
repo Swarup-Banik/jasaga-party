@@ -41,6 +41,8 @@ async function getJasagaTabs() {
         "http://localhost:3000/*",
         "http://127.0.0.1:3000/*",
         "https://jasaga.party/*",
+        "*://jasaga-party.vercel.app/*",
+        "https://jasaga-party.vercel.app/*",
       ],
     });
   } catch {
@@ -292,6 +294,56 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       } catch (err) {
         sendResponse({ error: `Failed to communicate with Netflix tab: ${err.message}` });
       }
+    })();
+    return true;
+  }
+
+  return false;
+});
+
+// 4. External Direct Messaging (for origins declared in externally_connectable)
+chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+  const origin = sender.origin || (sender.url ? new URL(sender.url).origin : "");
+  const allowed = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://jasaga.party",
+    "http://jasaga.party",
+    "https://jasaga-party.vercel.app",
+    "http://jasaga-party.vercel.app",
+  ];
+
+  if (!allowed.includes(origin)) {
+    sendResponse({ error: "Untrusted external origin" });
+    return false;
+  }
+
+  const { type, action, payload } = message || {};
+
+  if (type === "PING" || action === "PING") {
+    sendResponse({ installed: true, version: "1.0.0", origin });
+    return false;
+  }
+
+  if (type === "GET_STATUS" || action === "GET_STATUS") {
+    (async () => {
+      const netflixTab = await getNetflixTab();
+      sendResponse({
+        extensionVersion: "1.0.0",
+        paired: !!currentPairing.roomId,
+        pairing: currentPairing,
+        netflixTab: netflixTab
+          ? {
+              found: true,
+              tabId: netflixTab.id,
+              url: netflixTab.url || "",
+              isWatch: !!netflixTab.url && netflixTab.url.includes("/watch/"),
+            }
+          : {
+              found: false,
+              isWatch: false,
+            },
+      });
     })();
     return true;
   }

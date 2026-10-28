@@ -9,30 +9,45 @@
   const EXTENSION_VERSION = "1.0.0";
   console.log(`[JASAGA Extension] Webpage Bridge mounted on ${window.location.origin} (v${EXTENSION_VERSION})`);
 
-  // 1. Mark DOM for instantaneous synchronous detection
-  try {
-    document.documentElement.setAttribute("data-jasaga-netflix-ext", EXTENSION_VERSION);
-  } catch {
-    // Ignore if document not ready
+  // 1. Mark DOM for instantaneous synchronous detection (resilient across hydration)
+  function markReady() {
+    try {
+      if (document.documentElement) {
+        document.documentElement.setAttribute("data-jasaga-netflix-ext", EXTENSION_VERSION);
+        document.documentElement.dataset.jasagaNetflixExt = EXTENSION_VERSION;
+      }
+    } catch {
+      // Ignore if document not ready
+    }
   }
+  markReady();
 
   // 2. Dispatch event for early listener hydration
   function notifyReady() {
-    window.dispatchEvent(
-      new CustomEvent("JASAGA_NETFLIX_EXT_READY", {
-        detail: { version: EXTENSION_VERSION, origin: window.location.origin },
-      })
-    );
+    markReady();
+    try {
+      window.dispatchEvent(
+        new CustomEvent("JASAGA_NETFLIX_EXT_READY", {
+          detail: { version: EXTENSION_VERSION, origin: window.location.origin },
+        })
+      );
+    } catch {
+      // Ignore if window event dispatch unavailable
+    }
   }
   notifyReady();
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", notifyReady);
   }
+  window.addEventListener("load", markReady);
 
   const ALLOWED_ORIGINS = new Set([
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "https://jasaga.party",
+    "http://jasaga.party",
+    "https://jasaga-party.vercel.app",
+    "http://jasaga-party.vercel.app",
   ]);
 
   // Enforce origin boundary

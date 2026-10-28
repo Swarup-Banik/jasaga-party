@@ -6,6 +6,12 @@ export interface UserProfile {
   isHost?: boolean;
 }
 
+export interface MessageReplyReference {
+  id: string;
+  senderName: string;
+  content: string;
+}
+
 export interface ChatMessage {
   id: string;
   roomId: string;
@@ -13,7 +19,17 @@ export interface ChatMessage {
   content: string;
   timestamp: number;
   type?: "message" | "system" | "action";
-  reactions?: Record<string, number>; // emoji -> count
+  // reactions can be map of emoji -> count or emoji -> array of userIds
+  reactions?: Record<string, string[] | number>;
+  replyTo?: MessageReplyReference;
+  isEdited?: boolean;
+  isDeleted?: boolean;
+}
+
+export interface TypingUser {
+  id: string;
+  name: string;
+  timestamp: number;
 }
 
 export interface ReactionBurst {

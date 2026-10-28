@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import { MessageSquare, Users, Radio, X, Sparkles, Database, Search } from "lucide-react";
-import { ChatMessage, UserProfile, PresenceUser } from "@/types/chat";
+import { ChatMessage, UserProfile, PresenceUser, MessageReplyReference, TypingUser } from "@/types/chat";
+import { VoiceStatus, VoiceParticipant } from "@/types/voice";
 import { MediaSearchResult } from "@/types/media";
 import { MediaSearchSection } from "@/components/media/MediaSearchSection";
 import { ChatMessageList } from "./ChatMessageList";
@@ -15,13 +16,31 @@ interface ChatSidebarProps {
   onlineMembers: PresenceUser[];
   currentUser: UserProfile;
   controller: UserProfile | null;
-  onSendMessage: (text: string) => void;
+  onSendMessage: (text: string, replyTo?: MessageReplyReference) => void;
   onBurstReaction: (emoji: string) => void;
+  onReactMessage?: (messageId: string, emoji: string) => void;
+  onEditMessage?: (messageId: string, newContent: string) => void;
+  onDeleteMessage?: (messageId: string) => void;
+  onTyping?: (isTyping: boolean) => void;
+  typingUsers?: TypingUser[];
   onSyncMedia?: (url: string, title?: string) => void;
   isUsingSupabase: boolean;
   connectionStatus: "connecting" | "connected" | "fallback";
   isMobileOpen: boolean;
   onCloseMobile: () => void;
+
+  // Voice Chat Integration Props
+  voiceStatus?: VoiceStatus;
+  isVoiceMuted?: boolean;
+  isVoiceSpeaking?: boolean;
+  voiceParticipants?: VoiceParticipant[];
+  availableAudioDevices?: MediaDeviceInfo[];
+  selectedAudioDeviceId?: string;
+  voiceErrorMessage?: string | null;
+  onJoinVoice?: () => void;
+  onLeaveVoice?: () => void;
+  onToggleVoiceMute?: () => void;
+  onChangeAudioDevice?: (deviceId: string) => void;
 }
 
 export const ChatSidebar: React.FC<ChatSidebarProps> = ({
@@ -31,14 +50,36 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   controller,
   onSendMessage,
   onBurstReaction,
+  onReactMessage,
+  onEditMessage,
+  onDeleteMessage,
+  onTyping,
+  typingUsers = [],
   onSyncMedia,
   isUsingSupabase,
   connectionStatus,
   isMobileOpen,
   onCloseMobile,
+  voiceStatus = "disconnected",
+  isVoiceMuted = false,
+  isVoiceSpeaking = false,
+  voiceParticipants = [],
+  availableAudioDevices = [],
+  selectedAudioDeviceId = "",
+  voiceErrorMessage,
+  onJoinVoice,
+  onLeaveVoice,
+  onToggleVoiceMute,
+  onChangeAudioDevice,
 }) => {
   const [activeTab, setActiveTab] = useState<"chat" | "members" | "search">("chat");
   const [showConfigModal, setShowConfigModal] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<MessageReplyReference | null>(null);
+
+  const handleSend = (text: string, replyTo?: MessageReplyReference) => {
+    onSendMessage(text, replyTo);
+    setReplyingTo(null);
+  };
 
   return (
     <>
@@ -52,7 +93,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
       {/* Main Sidebar Container: 25% on desktop, slide-over drawer on mobile */}
       <aside
-        className={`fixed lg:static top-0 right-0 bottom-0 z-50 w-[85vw] sm:w-[360px] lg:w-full h-full bg-theater-950/95 lg:bg-theater-950 border-l border-theater-800 flex flex-col transition-transform duration-300 ease-in-out select-none ${
+        className={`fixed lg:static top-0 right-0 bottom-0 z-50 w-[85vw] sm:w-[360px] lg:w-full h-full bg-theater-950/95 lg:bg-theater-950 border-l border-theater-800 flex flex-col transition-transform duration-300 ease-in-out select-none min-h-0 ${
           isMobileOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"
         }`}
       >
@@ -114,11 +155,11 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
           </button>
         </div>
 
-        {/* Realtime Status Pill */}
-        <div className="px-3 py-1.5 bg-theater-950/80 border-b border-theater-850 flex items-center justify-between text-[11px] text-slate-400">
-          <div className="flex items-center gap-1.5">
+        {/* Realtime Status Pill & Voice State */}
+        <div className="px-3 py-1.5 bg-theater-950/80 border-b border-theater-850 flex items-center justify-between text-[11px] text-slate-400 shrink-0">
+          <div className="flex items-center gap-1.5 min-w-0 truncate">
             <Radio
-              className={`w-3 h-3 ${
+              className={`w-3 h-3 shrink-0 ${
                 isUsingSupabase
                   ? "text-emerald-400 animate-pulse"
                   : "text-amber-400"
@@ -131,36 +172,68 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
             </span>
           </div>
 
-          {!isUsingSupabase && (
+          {/* Voice Indicator Badge or Connect DB */}
+          {voiceParticipants.length > 0 ? (
+            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-medium shrink-0 animate-in fade-in">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>{voiceParticipants.length} in Voice</span>
+            </div>
+          ) : !isUsingSupabase ? (
             <button
               onClick={() => setShowConfigModal(true)}
-              className="text-brand-purple hover:underline text-[10px] font-semibold"
+              className="text-brand-purple hover:underline text-[10px] font-semibold shrink-0"
             >
               Connect DB
             </button>
-          )}
+          ) : null}
         </div>
 
         {/* Tab Content */}
         {activeTab === "chat" ? (
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             {/* Messages Feed */}
-            <ChatMessageList messages={messages} currentUser={currentUser} />
+            <ChatMessageList
+              messages={messages}
+              currentUser={currentUser}
+              typingUsers={typingUsers}
+              voiceParticipants={voiceParticipants}
+              onReact={onReactMessage || (() => {})}
+              onStartReply={(ref) => setReplyingTo(ref)}
+              onEditMessage={onEditMessage}
+              onDeleteMessage={onDeleteMessage}
+            />
 
             {/* Quick Burst Reactions Bar */}
             <EmojiPickerBar
-              onSelectEmoji={(emoji) => onSendMessage(emoji)}
+              onSelectEmoji={(emoji) => handleSend(emoji)}
               onBurstReaction={onBurstReaction}
             />
 
-            {/* Input Component */}
-            <ChatInput onSendMessage={onSendMessage} />
+            {/* Input Component with Microphone Controls */}
+            <ChatInput
+              onSendMessage={handleSend}
+              replyingTo={replyingTo}
+              onCancelReply={() => setReplyingTo(null)}
+              onTyping={onTyping}
+              voiceStatus={voiceStatus}
+              isVoiceMuted={isVoiceMuted}
+              isVoiceSpeaking={isVoiceSpeaking}
+              voiceParticipants={voiceParticipants}
+              availableAudioDevices={availableAudioDevices}
+              selectedAudioDeviceId={selectedAudioDeviceId}
+              voiceErrorMessage={voiceErrorMessage}
+              onJoinVoice={onJoinVoice}
+              onLeaveVoice={onLeaveVoice}
+              onToggleVoiceMute={onToggleVoiceMute}
+              onChangeAudioDevice={onChangeAudioDevice}
+            />
           </div>
         ) : activeTab === "members" ? (
           <MemberListTab
             members={onlineMembers}
             currentUser={currentUser}
             controller={controller}
+            voiceParticipants={voiceParticipants}
           />
         ) : (
           <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
@@ -175,7 +248,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                 if (onSyncMedia) {
                   onSyncMedia(streamTarget, item.title);
                 } else {
-                  onSendMessage(
+                  handleSend(
                     `🎬 [Now Playing] ${item.title} (${item.year || "Release"}) • ${item.synopsis.slice(0, 100)}...`
                   );
                 }

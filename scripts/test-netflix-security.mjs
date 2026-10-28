@@ -281,6 +281,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://localhost:3000",
   "http://127.0.0.1:3000",
   "https://jasaga.party",
+  "https://jasaga-party.vercel.app",
 ]);
 
 const ALLOWED_ACTIONS = new Set([
@@ -687,6 +688,13 @@ test(15, "Extension bridge rejects untrusted foreign web origins", () => {
     action: "PING",
   });
   assert.equal(validRes.accepted, true);
+
+  // Production Vercel origin passes
+  const vercelRes = simulateBridgeMessage("https://jasaga-party.vercel.app", {
+    target: "JASAGA_EXT_BRIDGE",
+    action: "PING",
+  });
+  assert.equal(vercelRes.accepted, true);
 });
 
 // 16. Invalid extension message

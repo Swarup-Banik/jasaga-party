@@ -16,8 +16,19 @@
     "*://*.netflix.com/*",
     "http://localhost:3000/*",
     "http://127.0.0.1:3000/*",
-    "https://jasaga.party/*"
+    "https://jasaga.party/*",
+    "*://jasaga-party.vercel.app/*",
+    "https://jasaga-party.vercel.app/*"
   ],
+  "externally_connectable": {
+    "matches": [
+      "http://localhost:3000/*",
+      "http://127.0.0.1:3000/*",
+      "https://jasaga.party/*",
+      "*://jasaga-party.vercel.app/*",
+      "https://jasaga-party.vercel.app/*"
+    ]
+  },
   "action": {
     "default_popup": "popup.html",
     "default_title": "JASAGA Netflix Sync",
@@ -46,7 +57,9 @@
       "matches": [
         "http://localhost:3000/*",
         "http://127.0.0.1:3000/*",
-        "https://jasaga.party/*"
+        "https://jasaga.party/*",
+        "*://jasaga-party.vercel.app/*",
+        "https://jasaga-party.vercel.app/*"
       ],
       "js": ["jasaga-bridge.js"],
       "run_at": "document_start"
